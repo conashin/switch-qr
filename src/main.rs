@@ -4,7 +4,7 @@ use std::io::Read;
 
 use chrono::Local;
 use image::Luma;
-use qrcode::QrCode;
+use qrcode::{EcLevel, QrCode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -18,14 +18,19 @@ struct InputData {
 }
 
 #[derive(Debug, Serialize)]
-#[allow(non_snake_case)]
 struct OutputData {
-    名稱: String,
-    IP: String,
-    DNS: String,
-    備註: String,
-    購入年: String,
-    QRCode建立日期: String,
+    #[serde(rename = "N")]
+    name: String,
+    #[serde(rename = "IP")]
+    ip: String,
+    #[serde(rename = "DNS")]
+    dns: String,
+    #[serde(rename = "M")]
+    notes: String,
+    #[serde(rename = "Y")]
+    purchase_year: String,
+    #[serde(rename = "D")]
+    qrcode_date: String,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,28 +53,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get current date
     let current_date = Local::now().format("%Y-%m-%d").to_string();
 
-    // Create OutputData
+    // Create OutputData with minimized keys for smaller QR code payload
     let output_data = OutputData {
-        名稱: input_data.name.clone(),
-        IP: input_data.ip,
-        DNS: input_data.dns,
-        備註: input_data.notes,
-        購入年: input_data.purchase_year,
-        QRCode建立日期: current_date,
+        name: input_data.name.clone(),
+        ip: input_data.ip,
+        dns: input_data.dns,
+        notes: input_data.notes,
+        purchase_year: input_data.purchase_year,
+        qrcode_date: current_date,
     };
 
-    // Serialize OutputData to JSON string
+    // Serialize OutputData to minified JSON string (no pretty formatting)
     let json_string = serde_json::to_string(&output_data)?;
 
-    // Generate QR Code
-    let code = QrCode::new(json_string.as_bytes())?;
-    let image = code.render::<Luma<u8>>().build();
+    // Generate QR Code with Low error correction (L) to minimize matrix complexity
+    let code = QrCode::with_error_correction_level(json_string.as_bytes(), EcLevel::L)?;
+
+    // Render the image without the default white quiet zone border
+    // This maximizes the size of the individual black/white modules when printed
+    let image = code.render::<Luma<u8>>()
+        .quiet_zone(false)
+        .build();
 
     // Save as PNG
     let output_filename = format!("{}.png", input_data.name);
     image.save(&output_filename)?;
 
-    println!("Successfully generated QR code: {}", output_filename);
+    println!("Successfully generated optimized QR code: {}", output_filename);
+    println!("Payload size: {} bytes", json_string.len());
 
     Ok(())
 }
