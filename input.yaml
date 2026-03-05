@@ -1,5 +1,4 @@
 name: "Server01"
 ip: "192.168.1.100"
 dns: "dns1.example.com"
-notes: "Main Database Server"
 purchase_year: "2023"

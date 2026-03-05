@@ -12,6 +12,7 @@ struct InputData {
     name: String,
     ip: String,
     dns: String,
+    #[serde(default)]
     notes: String,
     purchase_year: String,
 }
